@@ -25,24 +25,19 @@ public class Injector {
     }
 
     public Object getInstance(Class<?> interfaceClazz) {
-        Object clazzImplementationInstance = null;
         Class<?> clazz = findImplementation(interfaceClazz);
-        Field[] declaredFields = clazz.getDeclaredFields();
-        for (Field field : declaredFields) {
+        Object clazzImplementationInstance = createNewInstance(clazz);
+        for (Field field : clazz.getDeclaredFields()) {
             if (field.isAnnotationPresent(Inject.class)) {
                 Object fieldInstance = getInstance(field.getType());
-                clazzImplementationInstance = createNewInstance(clazz);
                 try {
                     field.setAccessible(true);
                     field.set(clazzImplementationInstance, fieldInstance);
-                } catch (IllegalAccessException e) {
+                } catch (ReflectiveOperationException e) {
                     throw new RuntimeException("Injection failed for field '" + field.getName()
                             + "' of class " + clazz.getName(), e);
                 }
             }
-        }
-        if (clazzImplementationInstance == null) {
-            clazzImplementationInstance = createNewInstance(clazz);
         }
         return clazzImplementationInstance;
     }
@@ -67,7 +62,7 @@ public class Injector {
     private Class<?> findImplementation(Class<?> interfaceClazz) {
         if (interfaceClazz.isInterface()) {
             if (!interfaceImplementation.containsKey(interfaceClazz)) {
-                throw new ClassIsInterfaceException("No implement found for "
+                throw new RuntimeException("No implement found for "
                         + interfaceClazz.getName());
             }
             return interfaceImplementation.get(interfaceClazz);

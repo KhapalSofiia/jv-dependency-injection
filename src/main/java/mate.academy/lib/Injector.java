@@ -12,10 +12,10 @@ import mate.academy.service.impl.FileReaderServiceImpl;
 import mate.academy.service.impl.ProductParserImpl;
 import mate.academy.service.impl.ProductServiceImpl;
 
-
 public class Injector {
     private static final Injector injector = new Injector();
     private final Map<Class<?>, Object> instances = new HashMap<>();
+    private final Map<Class<?>, Class<?>> interfaceImplementation = new HashMap<>();
 
     public static Injector getInjector() {
         return injector;
@@ -33,8 +33,8 @@ public class Injector {
                     field.setAccessible(true);
                     field.set(clazzImplementationInstance, fieldInstance);
                 } catch (IllegalAccessException e) {
-                    throw new RuntimeException("Can't initialize field value. "
-                            + "Class:" + clazz.getName() + " Field: " + field.getName());
+                    throw new RuntimeException("Injection failed for field '" + field.getName()
+                            + "' of class " + clazz.getName(), e);
                 }
             }
         }
@@ -45,6 +45,9 @@ public class Injector {
     }
 
     private Object createNewInstance(Class<?> clazz) {
+        if (!clazz.isAnnotationPresent(Component.class)) {
+            throw new RuntimeException("Missing @Component on class " + clazz.getName());
+        }
         if (instances.containsKey(clazz)) {
             return instances.get(clazz);
         }
@@ -54,21 +57,21 @@ public class Injector {
             instances.put(clazz, instance);
             return instance;
         } catch (ReflectiveOperationException e) {
-            throw new RuntimeException("Can't create a new instance of" + clazz.getName());
+            throw new RuntimeException("Failed to create instance of " + clazz.getName(), e);
         }
     }
 
     private Class<?> findImplementation(Class<?> interfaceClazz) {
-        Map<Class<?>, Class<?>> interfaceImplementation = new HashMap<Class<?>, Class<?>>();
         interfaceImplementation.put(FileReaderService.class, FileReaderServiceImpl.class);
         interfaceImplementation.put(ProductService.class, ProductServiceImpl.class);
         interfaceImplementation.put(ProductParser.class, ProductParserImpl.class);
-        if (!interfaceImplementation.containsKey(interfaceClazz)) {
-            throw new ClassIsInterfaceException(interfaceClazz.getName());
-        }
         if (interfaceClazz.isInterface()) {
+            if (!interfaceImplementation.containsKey(interfaceClazz)) {
+                throw new ClassIsInterfaceException(interfaceClazz.getName());
+            }
             return interfaceImplementation.get(interfaceClazz);
+        } else {
+            return interfaceClazz;
         }
-        return interfaceClazz;
     }
 }
